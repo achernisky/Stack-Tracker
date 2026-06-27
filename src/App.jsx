@@ -124,45 +124,9 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
-const DEFAULT_COMPOUNDS = [
-  { id:"reta",      name:"Reta (Alex)", status:"active",  color:"#c17f2a", vialMg:30,  bacMl:3,  doseStages:[{fromDate:"2026-01-01",doseMg:4}],   dayStages:[{fromDate:"2026-01-01",days:["Thu"]}], timing:"PM",  route:"SubQ", notes:"4mg weekly, Thursday evenings. Escalation as needed." },
-  { id:"reta-wife", name:"Reta (Emi)",  status:"active",  color:"#d4845a", vialMg:30,  bacMl:3,  doseStages:[{fromDate:"2026-01-01",doseMg:3}],   dayStages:[{fromDate:"2026-01-01",days:["Thu"]}], timing:"PM",  route:"SubQ", notes:"3mg weekly, Thursday evenings. Shared vial with Alex." },
-  { id:"trt",       name:"Testosterone",status:"active",  color:"#3b6fc4", vialMg:null, bacMl:null,doseStages:[{fromDate:"2026-01-01",doseMg:null,doseUnits:12}], dayStages:[{fromDate:"2026-01-01",days:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]}], timing:"Daily",route:"SubQ", notes:"200mg/mL, 5mL vial (1000mg total). 12 units/day = 24mg/day. ~41 day supply per vial." },
-  { id:"tesa",      name:"Tesamorelin", status:"pending", color:"#2a6b5e", vialMg:20,  bacMl:2,  doseStages:[{fromDate:"",doseMg:2}],             dayStages:[{fromDate:"",days:["Mon","Tue","Wed","Thu","Fri"]}], timing:"AM", route:"SubQ", notes:"2mg daily, 5 on/2 off. Stack with Ipamorelin." },
-  { id:"ipa",       name:"Ipamorelin",  status:"pending", color:"#7c5cbf", vialMg:10,  bacMl:1,  doseStages:[{fromDate:"",doseMg:0.2}],           dayStages:[{fromDate:"",days:["Mon","Tue","Wed","Thu","Fri"]}], timing:"AM", route:"SubQ", notes:"200mcg daily, 5 on/2 off. Co-inject with Tesamorelin." },
-  { id:"ghkcu",     name:"GHK-Cu",      status:"pending", color:"#9e6b3a", vialMg:100, bacMl:10, doseStages:[{fromDate:"",doseMg:1}],             dayStages:[{fromDate:"",days:["Mon","Tue","Wed","Thu","Fri"]}], timing:"AM", route:"SubQ", notes:"1mg daily, 5 on/2 off. Skin quality during fat loss." },
-];
-
-const mkVial = (id,cid,vendor,reconDate,totalMg,usedMg,status) =>
-  ({ id, compoundId:cid, vendor, lot:"", reconDate, totalMg, usedMg, status });
-
-const DEFAULT_VIALS = [
-  mkVial("v-reta-a1","reta","Apex","2026-06-25",30,7,"active"),
-  mkVial("v-reta-a2","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-a3","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-a4","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-a5","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-a6","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-a7","reta","Apex","",30,0,"reserve"),
-  mkVial("v-reta-c1","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c2","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c3","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c4","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c5","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c6","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c7","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c8","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c9","reta","Cici Factory","",30,0,"reserve"),
-  mkVial("v-reta-c10","reta","Cici Factory","",30,0,"reserve"),
-  ...[1,2,3,4,5,6,7,8,9,10].map(i=>mkVial(`v-tesa-${i}`,"tesa","Cici Factory","",20,0,"reserve")),
-  ...[1,2,3,4,5,6,7,8,9,10].map(i=>mkVial(`v-ipa-${i}`,"ipa","Cici Factory","",10,0,"reserve")),
-  ...[1,2,3,4,5,6,7,8,9,10].map(i=>mkVial(`v-ghk-${i}`,"ghkcu","Cici Factory","",100,0,"reserve")),
-  // Testosterone — 1 active (nearly done), 2 unopened reserves
-  mkVial("v-trt-1","trt","Pharmacy","",1000,976,"active"),
-  mkVial("v-trt-2","trt","Pharmacy","",1000,0,"reserve"),
-  mkVial("v-trt-3","trt","Pharmacy","",1000,0,"reserve"),
-];
+// ─── DEFAULT DATA (blank slate for new users) ─────────────────────────────────
+const DEFAULT_COMPOUNDS = [];
+const DEFAULT_VIALS = [];
 
 // ─── STORAGE (Supabase per-user) ──────────────────────────────────────────────
 async function loadData(userId) {
@@ -1038,6 +1002,7 @@ export default function App() {
   const[loading,setLoading]=useState(true);
   const[flashSaved,setFlashSaved]=useState(false);
   const[showChangePw,setShowChangePw]=useState(false);
+  const[showMenu,setShowMenu]=useState(false);
   const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
@@ -1051,7 +1016,9 @@ export default function App() {
         setLabLog(d.labLog||[]);
         setCycleStart(d.cycleStart||"2026-01-01");
       } else {
-        setCompounds(DEFAULT_COMPOUNDS);setVials(DEFAULT_VIALS);setLogs({});
+        // New user — start blank, save empty state to their row
+        setCompounds([]);setVials([]);setLogs({});setBodyLog([]);setLabLog([]);
+        saveData({compounds:[],vials:[],logs:{},cycleStart:"2026-06-27",bodyLog:[],labLog:[]},user.id);
       }
       setLoading(false);
     });
@@ -1128,10 +1095,18 @@ export default function App() {
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <div style={{padding:"8px 16px",borderRadius:8,fontFamily:F.sans,fontSize:13,fontWeight:600,
               background:flashSaved?C.accent:C.surfaceAlt,color:flashSaved?C.bg:C.textMuted,transition:"background 0.3s"}}>
-              {flashSaved?"Saved ✓":"Save"}
+              {flashSaved?"Saved ✓":"·"}
             </div>
-            <button onClick={()=>setShowChangePw(true)} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Password</button>
-            <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);}} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Sign out</button>
+            <div style={{position:"relative"}}>
+              <button onClick={()=>setShowMenu(m=>!m)} style={{padding:"8px 12px",borderRadius:8,fontFamily:F.sans,fontSize:18,fontWeight:600,cursor:"pointer",background:C.surfaceAlt,color:C.textSec,border:`1px solid ${C.border}`,lineHeight:1}}>⋮</button>
+              {showMenu&&(
+                <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",zIndex:50,minWidth:160,boxShadow:"0 4px 20px #0006"}}>
+                  <button onClick={()=>{setShowChangePw(true);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"12px 16px",fontFamily:F.sans,fontSize:14,color:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Change Password</button>
+                  <div style={{height:1,background:C.border}}/>
+                  <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"12px 16px",fontFamily:F.sans,fontSize:14,color:C.red,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Sign Out</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div style={{height:1,background:C.border,margin:"12px 0 0"}}/>
