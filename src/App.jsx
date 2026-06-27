@@ -17,46 +17,95 @@ const F = {
   mono: "'JetBrains Mono','Fira Mono',monospace",
 };
 
-// ─── PIN ──────────────────────────────────────────────────────────────────────
-const CORRECT_PIN = "1023";
-const PIN_SK = "stack-tracker-pin";
+// ─── SUPABASE AUTH ────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://npjeglrrnqebkitvvctr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-bteqtNtAwP7B7rXqgYydw_DtyM0Vke";
 
-function PinScreen({ onUnlock }) {
-  const [pin, setPin] = React.useState("");
-  const [error, setError] = React.useState(false);
+async function sbFetch(path, opts = {}) {
+  const session = JSON.parse(localStorage.getItem("sb-session") || "null");
+  const token = session?.access_token || SUPABASE_KEY;
+  return fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + token,
+      ...(opts.headers || {}),
+    },
+  });
+}
 
-  const handleDigit = (d) => {
-    if (pin.length >= 4) return;
-    const next = pin + d;
-    setPin(next);
-    if (next.length === 4) {
-      if (next === CORRECT_PIN) {
-        localStorage.setItem(PIN_SK, "1");
-        onUnlock();
-      } else {
-        setTimeout(() => { setPin(""); setError(true); setTimeout(() => setError(false), 1000); }, 200);
-      }
+async function signIn(email, password) {
+  const r = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await r.json();
+  if (data.access_token) {
+    localStorage.setItem("sb-session", JSON.stringify(data));
+    return { user: data.user, error: null };
+  }
+  return { user: null, error: data.error_description || data.msg || "Login failed" };
+}
+
+async function signOut() {
+  const session = JSON.parse(localStorage.getItem("sb-session") || "null");
+  if (session?.access_token) {
+    await fetch(SUPABASE_URL + "/auth/v1/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + session.access_token },
+    });
+  }
+  localStorage.removeItem("sb-session");
+}
+
+function getSession() {
+  try { return JSON.parse(localStorage.getItem("sb-session") || "null"); } catch { return null; }
+}
+
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) return;
+    setLoading(true);
+    setError("");
+    const { user, error: err } = await signIn(email, password);
+    if (user) {
+      onLogin(user);
+    } else {
+      setError(err);
+      setLoading(false);
     }
   };
 
-  const handleBack = () => setPin(p => p.slice(0, -1));
-
   return (
-    <div style={{minHeight:"100vh",background:"#0f1117",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',system-ui,sans-serif"}}>
-      <div style={{fontSize:22,fontWeight:700,color:"#e8eaf2",marginBottom:8}}>Stack Tracker</div>
-      <div style={{fontSize:13,color:"#8891aa",marginBottom:40}}>Enter PIN to continue</div>
-      <div style={{display:"flex",gap:14,marginBottom:40}}>
-        {[0,1,2,3].map(i => (
-          <div key={i} style={{width:16,height:16,borderRadius:"50%",background:pin.length>i?(error?"#f06060":"#2dd4a0"):"#2a2f42",transition:"background 0.15s"}}/>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,72px)",gap:12}}>
-        {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((d,i) => (
-          <button key={i} onClick={()=>d==="⌫"?handleBack():d!==""&&handleDigit(String(d))}
-            style={{width:72,height:72,borderRadius:16,border:"1px solid #2a2f42",background:d===""?"transparent":"#1a1d27",color:"#e8eaf2",fontSize:22,fontWeight:600,cursor:d===""?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {d}
-          </button>
-        ))}
+    <div style={{minHeight:"100vh",background:"#0f1117",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',system-ui,sans-serif",padding:"0 24px"}}>
+      <div style={{fontSize:26,fontWeight:700,color:"#e8eaf2",marginBottom:6}}>Stack Tracker</div>
+      <div style={{fontSize:13,color:"#8891aa",marginBottom:40}}>Sign in to continue</div>
+      <div style={{width:"100%",maxWidth:320}}>
+        <input
+          type="email" placeholder="Email" value={email}
+          onChange={e => setEmail(e.target.value)}
+          style={{width:"100%",background:"#1a1d27",border:"1px solid #2a2f42",borderRadius:10,padding:"14px 16px",color:"#e8eaf2",fontSize:15,marginBottom:12,outline:"none",boxSizing:"border-box"}}
+        />
+        <input
+          type="password" placeholder="Password" value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleLogin()}
+          style={{width:"100%",background:"#1a1d27",border:"1px solid #2a2f42",borderRadius:10,padding:"14px 16px",color:"#e8eaf2",fontSize:15,marginBottom:16,outline:"none",boxSizing:"border-box"}}
+        />
+        {error && <div style={{color:"#f06060",fontSize:13,marginBottom:12,textAlign:"center"}}>{error}</div>}
+        <button
+          onClick={handleLogin} disabled={loading}
+          style={{width:"100%",background:"#2dd4a0",color:"#0f1117",border:"none",borderRadius:10,padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1}}
+        >
+          {loading ? "Signing in..." : "Sign In"}
+        </button>
       </div>
     </div>
   );
@@ -102,24 +151,28 @@ const DEFAULT_VIALS = [
   mkVial("v-trt-3","trt","Pharmacy","",1000,0,"reserve"),
 ];
 
-// ─── STORAGE (Supabase cloud sync) ────────────────────────────────────────────
-const SUPABASE_URL = "https://npjeglrrnqebkitvvctr.supabase.co";
-const SUPABASE_KEY = "sb_publishable_-bteqtNtAwP7B7rXqgYydw_DtyM0Vke";
-const SB_HEADERS = { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY };
-
-async function loadData() {
+// ─── STORAGE (Supabase per-user) ──────────────────────────────────────────────
+async function loadData(userId) {
   try {
-    const r = await fetch(SUPABASE_URL + "/rest/v1/stack_tracker?id=eq.main&select=data", { headers: SB_HEADERS });
+    const r = await sbFetch(`/rest/v1/stack_tracker?user_id=eq.${userId}&select=data`);
     const j = await r.json();
     return j?.[0]?.data && Object.keys(j[0].data).length ? j[0].data : null;
   } catch { return null; }
 }
-async function saveData(d) {
+async function saveData(d, userId) {
   try {
-    await fetch(SUPABASE_URL + "/rest/v1/stack_tracker?id=eq.main", {
+    // Try update first
+    const r = await sbFetch(`/rest/v1/stack_tracker?user_id=eq.${userId}`, {
       method: "PATCH",
-      headers: { ...SB_HEADERS, "Prefer": "return=minimal" },
-      body: JSON.stringify({ data: d })
+      headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ data: d }),
+    });
+    // If no rows updated, insert
+    if (r.status === 200 || r.status === 204) return;
+    await sbFetch("/rest/v1/stack_tracker", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ id: "user-" + userId, user_id: userId, data: d }),
     });
   } catch {}
 }
@@ -934,29 +987,31 @@ export default function App() {
   const[cycleStart,setCycleStart]=useState("2026-01-01");
   const[loading,setLoading]=useState(true);
   const[flashSaved,setFlashSaved]=useState(false);
-  const[unlocked,setUnlocked]=useState(()=>localStorage.getItem(PIN_SK)==="1");
+  const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
-    loadData().then(d=>{
-    if(d){
-      setCompounds(d.compounds||DEFAULT_COMPOUNDS);
-      setVials(d.vials||DEFAULT_VIALS);
-      setLogs(d.logs||{});
-      setBodyLog(d.bodyLog||[]);
-      setLabLog(d.labLog||[]);
-      setCycleStart(d.cycleStart||"2026-01-01");
-    } else {
-      setCompounds(DEFAULT_COMPOUNDS);setVials(DEFAULT_VIALS);setLogs({});
-    }
-    setLoading(false);
+    if(!user){setLoading(false);return;}
+    loadData(user.id).then(d=>{
+      if(d){
+        setCompounds(d.compounds||DEFAULT_COMPOUNDS);
+        setVials(d.vials||DEFAULT_VIALS);
+        setLogs(d.logs||{});
+        setBodyLog(d.bodyLog||[]);
+        setLabLog(d.labLog||[]);
+        setCycleStart(d.cycleStart||"2026-01-01");
+      } else {
+        setCompounds(DEFAULT_COMPOUNDS);setVials(DEFAULT_VIALS);setLogs({});
+      }
+      setLoading(false);
     });
-  },[]);
+  },[user]);
 
   const persist=useCallback((c,v,l,cs,bl,ll)=>{
-    saveData({compounds:c,vials:v,logs:l,cycleStart:cs,bodyLog:bl,labLog:ll})
+    if(!user) return;
+    saveData({compounds:c,vials:v,logs:l,cycleStart:cs,bodyLog:bl,labLog:ll},user.id)
       .then(()=>{ setFlashSaved(true); setTimeout(()=>setFlashSaved(false),2000); })
       .catch(()=>{ setFlashSaved(false); });
-  },[]);
+  },[user]);
 
   const markAll=useCallback((ws,allDone)=>{
     setLogs(prev=>{
@@ -994,7 +1049,7 @@ export default function App() {
   const updateBodyLog=useCallback(bl=>{setBodyLog(bl);persist(compounds,vials,logs,cycleStart,bl,labLog);},[compounds,vials,logs,cycleStart,labLog,persist]);
   const updateLabLog=useCallback(ll=>{setLabLog(ll);persist(compounds,vials,logs,cycleStart,bodyLog,ll);},[compounds,vials,logs,cycleStart,bodyLog,persist]);
 
-  if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)}/>;
+  if(!user) return <LoginScreen onLogin={(u)=>{setUser(u);}} />;
   if(loading||!compounds||!vials||!logs)return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F.sans,color:C.textSec}}>Loading…</div>
   );
@@ -1019,9 +1074,12 @@ export default function App() {
               Started {fmtDateFull(cycleStart)} · {weeks} week{weeks!==1?"s":""} · tap any dose to log
             </div>
           </div>
-          <div style={{padding:"8px 16px",borderRadius:8,fontFamily:F.sans,fontSize:13,fontWeight:600,
-            background:flashSaved?C.accent:C.surfaceAlt,color:flashSaved?C.bg:C.textMuted,transition:"background 0.3s"}}>
-            {flashSaved?"Saved ✓":"Save"}
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{padding:"8px 16px",borderRadius:8,fontFamily:F.sans,fontSize:13,fontWeight:600,
+              background:flashSaved?C.accent:C.surfaceAlt,color:flashSaved?C.bg:C.textMuted,transition:"background 0.3s"}}>
+              {flashSaved?"Saved ✓":"Save"}
+            </div>
+            <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);}} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Out</button>
           </div>
         </div>
         <div style={{height:1,background:C.border,margin:"12px 0 0"}}/>
