@@ -64,6 +64,19 @@ function getSession() {
   try { return JSON.parse(localStorage.getItem("sb-session") || "null"); } catch { return null; }
 }
 
+async function changePassword(newPassword) {
+  const session = JSON.parse(localStorage.getItem("sb-session") || "null");
+  if (!session?.access_token) return { error: "Not logged in" };
+  const r = await fetch(SUPABASE_URL + "/auth/v1/user", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "apikey": SUPABASE_KEY, "Authorization": "Bearer " + session.access_token },
+    body: JSON.stringify({ password: newPassword }),
+  });
+  const data = await r.json();
+  if (data.id) return { error: null };
+  return { error: data.message || "Failed to update password" };
+}
+
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -753,6 +766,43 @@ function VialModal({vial,compounds,onSave,onClose}){
 }
 
 // ─── DATA TAB (Body Comp + Labs) ──────────────────────────────────────────────
+function ChangePasswordModal({ onClose }) {
+  const [pw, setPw] = React.useState("");
+  const [pw2, setPw2] = React.useState("");
+  const [msg, setMsg] = React.useState("");
+  const [success, setSuccess] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+
+  const handle = async () => {
+    if (pw.length < 6) { setMsg("Password must be at least 6 characters"); return; }
+    if (pw !== pw2) { setMsg("Passwords do not match"); return; }
+    setLoading(true);
+    const { error } = await changePassword(pw);
+    if (error) { setMsg(error); setLoading(false); }
+    else { setSuccess(true); setTimeout(onClose, 1500); }
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"#000c",display:"flex",alignItems:"flex-end",zIndex:300}}>
+      <div style={{background:"#1a1d27",borderRadius:"16px 16px 0 0",padding:24,width:"100%"}}>
+        <div style={{fontFamily:"'Georgia',serif",fontSize:20,fontWeight:700,color:"#e8eaf2",marginBottom:20}}>Change Password</div>
+        <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)}
+          style={{width:"100%",background:"#222636",border:"1px solid #3a4058",borderRadius:7,padding:"12px",color:"#e8eaf2",fontSize:14,marginBottom:12,outline:"none",boxSizing:"border-box"}}/>
+        <input type="password" placeholder="Confirm new password" value={pw2} onChange={e=>setPw2(e.target.value)}
+          style={{width:"100%",background:"#222636",border:"1px solid #3a4058",borderRadius:7,padding:"12px",color:"#e8eaf2",fontSize:14,marginBottom:16,outline:"none",boxSizing:"border-box"}}/>
+        {msg && <div style={{color:"#f06060",fontSize:13,marginBottom:12}}>{msg}</div>}
+        {success && <div style={{color:"#2dd4a0",fontSize:13,marginBottom:12}}>Password updated!</div>}
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={handle} disabled={loading} style={{flex:1,background:"#2dd4a0",color:"#0f1117",border:"none",borderRadius:8,padding:12,fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1}}>
+            {loading?"Updating...":"Update Password"}
+          </button>
+          <button onClick={onClose} style={{flex:1,background:"transparent",color:"#8891aa",border:"1px solid #2a2f42",borderRadius:8,padding:12,fontFamily:"'Inter',sans-serif",fontSize:13,cursor:"pointer"}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DataTab({ bodyLog, labLog, onUpdateBodyLog, onUpdateLabLog }) {
   const [bTab,setBTab]=useState("body");
   const [showBodyForm,setShowBodyForm]=useState(false);
@@ -987,6 +1037,7 @@ export default function App() {
   const[cycleStart,setCycleStart]=useState("2026-01-01");
   const[loading,setLoading]=useState(true);
   const[flashSaved,setFlashSaved]=useState(false);
+  const[showChangePw,setShowChangePw]=useState(false);
   const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
@@ -1079,7 +1130,8 @@ export default function App() {
               background:flashSaved?C.accent:C.surfaceAlt,color:flashSaved?C.bg:C.textMuted,transition:"background 0.3s"}}>
               {flashSaved?"Saved ✓":"Save"}
             </div>
-            <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);}} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Out</button>
+            <button onClick={()=>setShowChangePw(true)} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Password</button>
+            <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);}} style={{padding:"8px 10px",borderRadius:8,fontFamily:F.sans,fontSize:11,fontWeight:600,cursor:"pointer",background:"transparent",color:C.textMuted,border:`1px solid ${C.border}`}}>Sign out</button>
           </div>
         </div>
         <div style={{height:1,background:C.border,margin:"12px 0 0"}}/>
@@ -1108,6 +1160,7 @@ export default function App() {
       {tab==="data"&&<DataTab bodyLog={bodyLog} labLog={labLog} onUpdateBodyLog={updateBodyLog} onUpdateLabLog={updateLabLog}/>}
       {tab==="editplan"&&<EditPlanTab compounds={compounds} onUpdateCompounds={updateCompounds} cycleStart={cycleStart} onUpdateCycleStart={updateCycleStart}/>}
 
+      {showChangePw && <ChangePasswordModal onClose={()=>setShowChangePw(false)}/>}
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:0;}
