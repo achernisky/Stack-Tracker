@@ -881,9 +881,27 @@ function DataTab({ bodyLog, labLog, onUpdateBodyLog, onUpdateLabLog }) {
 
 // ─── EDIT PLAN TAB ────────────────────────────────────────────────────────────
 function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}){
-  const[sel,setSel]=useState(compounds[0]?.id);
+  const[sel,setSel]=useState(compounds[0]?.id||null);
   const c=compounds.find(x=>x.id===sel);
   const upd=updated=>onUpdateCompounds(compounds.map(x=>x.id===updated.id?updated:x));
+
+  const addCompound=()=>{
+    const id="compound-"+Date.now();
+    const newC={id,name:"New Compound",status:"active",color:"#2dd4a0",vialMg:10,bacMl:1,
+      doseStages:[{fromDate:todayStr(),doseMg:1}],
+      dayStages:[{fromDate:todayStr(),days:[]}],
+      timing:"",route:"SubQ",notes:""};
+    onUpdateCompounds([...compounds,newC]);
+    setSel(id);
+  };
+
+  const deleteCompound=()=>{
+    if(!c) return;
+    if(!window.confirm("Delete "+c.name+"?")) return;
+    const remaining=compounds.filter(x=>x.id!==sel);
+    onUpdateCompounds(remaining);
+    setSel(remaining[0]?.id||null);
+  };
   const addDoseStage=()=>upd({...c,doseStages:[...c.doseStages,{fromDate:todayStr(),doseMg:c.doseStages.at(-1)?.doseMg||1}]});
   const remDoseStage=i=>c.doseStages.length>1&&upd({...c,doseStages:c.doseStages.filter((_,idx)=>idx!==i)});
   const setDoseStage=(i,k,v)=>upd({...c,doseStages:c.doseStages.map((s,idx)=>idx===i?{...s,[k]:v}:s)});
@@ -901,7 +919,7 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
         <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Cycle / tracker start date</span>
         <input type="date" value={cycleStart} onChange={e=>onUpdateCycleStart(e.target.value)} style={iSty}/>
       </div>
-      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         {compounds.map(x=>(
           <button key={x.id} onClick={()=>setSel(x.id)} style={{
             padding:"7px 14px",borderRadius:20,fontFamily:F.sans,fontSize:13,fontWeight:600,cursor:"pointer",
@@ -909,9 +927,14 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
             border:`1px solid ${sel===x.id?x.color:C.border}`,opacity:x.status==="pending"?0.7:1,
           }}>{x.name}{x.status==="pending"?" ⏳":""}</button>
         ))}
+        <button onClick={addCompound} style={{padding:"7px 14px",borderRadius:20,fontFamily:F.sans,fontSize:13,fontWeight:600,cursor:"pointer",background:C.accent,color:C.bg,border:"none"}}>+ Add</button>
       </div>
       {c&&(
         <div style={{...card({})}}>
+          {/* Delete button at top right */}
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+            <button onClick={deleteCompound} style={{fontFamily:F.sans,fontSize:12,color:C.red,background:"transparent",border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer"}}>Delete compound</button>
+          </div>
           {c.status==="pending"&&(
             <div style={{background:C.amberLight,border:`1px solid ${C.amber}40`,borderRadius:8,padding:"12px 14px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
