@@ -161,18 +161,22 @@ async function registerPush(userId) {
     const session = JSON.parse(localStorage.getItem("sb-session") || "null");
     const token = session?.access_token || SUPABASE_KEY;
     const reg = await navigator.serviceWorker.register("/sw.js");
+    console.log("SW registered:", reg);
     await navigator.serviceWorker.ready;
+    console.log("SW ready");
     const perm = await Notification.requestPermission();
+    console.log("Permission:", perm);
     if (perm !== "granted") return null;
     const existing = await reg.pushManager.getSubscription();
-    if (existing) await existing.unsubscribe();
-    // Use Function to prevent Vite minification from mangling this code
-    const toUint8 = new Function("base64Str", );
+    if (existing) { console.log("Unsubscribing existing"); await existing.unsubscribe(); }
     const vapidKey = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
+    const b64 = (vapidKey + "=".repeat((4 - vapidKey.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    const appKey = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: toUint8(vapidKey),
+      applicationServerKey: appKey,
     });
+    console.log("Subscribed:", JSON.stringify(sub));
     const headers = {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
@@ -186,7 +190,7 @@ async function registerPush(userId) {
     });
     return sub;
   } catch(e) {
-    console.error("Push registration failed:", e);
+    console.error("Push registration failed:", e.name, e.message);
     return null;
   }
 }
