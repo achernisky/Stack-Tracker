@@ -319,20 +319,21 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
     if (saving) return;
     setSaving(true);
     setStatus("");
-    // Always save the compound settings first
-    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
-    // Then register push if enabling
     if (enabled) {
       setStatus("Registering...");
       const sub = await registerPush(userId);
       if (sub) {
         setStatus("✓ Push notifications enabled");
-        setTimeout(() => onClose(), 1500);
       } else {
-        setStatus("✗ Push registration failed — settings saved but no push");
-        setTimeout(() => onClose(), 2500);
+        setStatus("✗ Push failed — settings saved anyway");
       }
+      // Save and close after showing status
+      setTimeout(() => {
+        onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
+        onClose();
+      }, 1500);
     } else {
+      onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: false });
       onClose();
     }
   };
