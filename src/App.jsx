@@ -156,9 +156,39 @@ async function saveData(d, userId) {
 
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
 async function registerPush(userId) {
-  const session = JSON.parse(localStorage.getItem("sb-session") || "null");
-  const token = session?.access_token || SUPABASE_KEY;
-  return window.stackPush?.register(userId, SUPABASE_URL, SUPABASE_KEY, token) || null;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  try {
+    const session = JSON.parse(localStorage.getItem("sb-session") || "null");
+    const token = session?.access_token || SUPABASE_KEY;
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return null;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+    // Use Function to prevent Vite minification from mangling this code
+    const toUint8 = new Function("base64Str", );
+    const vapidKey = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: toUint8(vapidKey),
+    });
+    const headers = {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + token,
+      "Prefer": "return=minimal"
+    };
+    await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions?user_id=eq." + userId, { method: "DELETE", headers });
+    await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions", {
+      method: "POST", headers,
+      body: JSON.stringify({ user_id: userId, subscription: JSON.stringify(sub) })
+    });
+    return sub;
+  } catch(e) {
+    console.error("Push registration failed:", e);
+    return null;
+  }
 }
 
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
