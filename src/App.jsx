@@ -157,8 +157,6 @@ async function saveData(d, userId) {
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
 async function registerPush(userId) {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
-  if (window.__pushBusy) return null;
-  window.__pushBusy = true;
   try {
     const session = JSON.parse(localStorage.getItem("sb-session") || "null");
     const token = session?.access_token || SUPABASE_KEY;
@@ -191,11 +189,9 @@ async function registerPush(userId) {
       body: JSON.stringify({ user_id: userId, subscription: JSON.stringify(sub) })
     });
     console.log("Saved subscription:", saveRes.status);
-    window.__pushBusy = false;
     return sub;
   } catch(e) {
     console.error("Push registration failed:", e.name, e.message);
-    window.__pushBusy = false;
     return null;
   }
 }
@@ -322,20 +318,23 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
   const handle = async () => {
     if (saving) return;
     setSaving(true);
-    setStatus("Registering...");
+    setStatus("");
+    // Always save the compound settings first
+    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
+    // Then register push if enabling
     if (enabled) {
+      setStatus("Registering...");
       const sub = await registerPush(userId);
       if (sub) {
-        setStatus("✓ Notifications enabled");
-        setTimeout(() => { onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled }); onClose(); }, 1000);
+        setStatus("✓ Push notifications enabled");
+        setTimeout(() => onClose(), 1500);
       } else {
-        setStatus("✗ Failed — check browser notification permissions");
-        setSaving(false);
+        setStatus("✗ Push registration failed — settings saved but no push");
+        setTimeout(() => onClose(), 2500);
       }
-      return;
+    } else {
+      onClose();
     }
-    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: false });
-    onClose();
   };
 
   return (
