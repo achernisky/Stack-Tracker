@@ -248,7 +248,73 @@ function DoseLogModal({ compound, dateStr, existingLog, onSave, onClose }) {
 }
 
 // ─── SCHEDULE TAB ─────────────────────────────────────────────────────────────
-function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModal}) {
+function NotificationModal({ compound, onSave, onClose, userId }) {
+  const [time, setTime] = React.useState(compound.notifyTime || "");
+  const [enabled, setEnabled] = React.useState(compound.notifyEnabled !== false);
+
+  const handle = async () => {
+    if (enabled) {
+      // Register push if not already done
+      if (!localStorage.getItem("push-granted")) {
+        if (typeof Notification !== "undefined") {
+          const perm = await Notification.requestPermission();
+          if (perm === "granted") {
+            localStorage.setItem("push-granted", "1");
+            // Register service worker subscription
+            if (window.stackPush && user_id) {
+              await window.stackPush.register(userId, SUPABASE_URL, SUPABASE_KEY,
+                JSON.parse(localStorage.getItem("sb-session")||"null")?.access_token || SUPABASE_KEY);
+            }
+          }
+        }
+      }
+    }
+    onSave({ ...compound, notifyTime: time, notifyEnabled: enabled });
+    onClose();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"#000c",display:"flex",alignItems:"flex-end",zIndex:300}}>
+      <div style={{background:C.surface,borderRadius:"16px 16px 0 0",padding:24,width:"100%"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <div style={{width:12,height:12,borderRadius:"50%",background:compound.color}}/>
+          <span style={{fontFamily:F.serif,fontSize:18,fontWeight:700,color:C.text}}>{compound.name}</span>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,padding:"14px 16px",background:C.surfaceAlt,borderRadius:10}}>
+          <div>
+            <div style={{fontFamily:F.sans,fontSize:14,fontWeight:600,color:C.text}}>Notifications</div>
+            <div style={{fontFamily:F.sans,fontSize:12,color:C.textSec,marginTop:2}}>Remind me on scheduled days</div>
+          </div>
+          <div onClick={()=>setEnabled(e=>!e)} style={{
+            width:48,height:28,borderRadius:14,cursor:"pointer",transition:"background 0.2s",
+            background:enabled?C.accent:C.border,position:"relative",flexShrink:0,
+          }}>
+            <div style={{
+              width:22,height:22,borderRadius:11,background:C.white,position:"absolute",
+              top:3,left:enabled?23:3,transition:"left 0.2s",
+            }}/>
+          </div>
+        </div>
+
+        {enabled && (
+          <div style={{marginBottom:20}}>
+            <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:6}}>Notification time</span>
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={iSty}/>
+          </div>
+        )}
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={handle} style={{...bSty("primary"),flex:1,padding:12}}>Save</button>
+          <button onClick={onClose} style={{...bSty("outline"),flex:1,padding:12}}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModal, onOpenNotify}) {
+  const notifyOn = compound.notifyEnabled !== false && compound.notifyTime;
   return (
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:inWeek?0:10,padding:inWeek?"6px 16px 8px":0}}>
       <div onClick={()=>onOpenModal({compound,dateStr})} style={{
@@ -259,11 +325,16 @@ function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModa
       }}>
         {logged && <span style={{color:C.bg,fontSize:inWeek?11:13}}>✓</span>}
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
+      <div style={{display:"flex",alignItems:"center",gap:6,flex:1}} onClick={()=>onOpenNotify(compound)}>
         <div style={{width:8,height:8,borderRadius:"50%",background:compound.color,flexShrink:0}}/>
         <span style={{fontFamily:F.sans,fontSize:inWeek?14:15,color:logged?C.textMuted:C.text,textDecoration:logged?"line-through":"none"}}>{compound.name}</span>
         {compound.timing && !["Daily","Weekly"].includes(compound.timing) && (
           <span style={{fontFamily:F.sans,fontSize:10,background:C.surfaceAlt,color:C.textSec,padding:"1px 6px",borderRadius:10,fontWeight:600}}>{compound.timing}</span>
+        )}
+        {compound.notifyTime && (
+          <span style={{fontFamily:F.mono,fontSize:10,color:notifyOn?C.accent:C.textMuted}}>
+            {notifyOn ? "🔔" : "🔕"} {compound.notifyTime}
+          </span>
         )}
       </div>
       <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -278,13 +349,15 @@ function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModa
   );
 }
 
-function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials }) {
+
+function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials, onUpdateCompound, user }) {
   const today = todayStr();
+  const [notifyModal, setNotifyModal] = useState(null);
+  const [doseModal, setDoseModal] = useState(null);
   const active = compounds.filter(c=>c.status==="active");
   const pending = compounds.filter(c=>c.status==="pending");
   const curWS = weekStart(today);
   const [expanded, setExpanded] = useState(curWS);
-  const [doseModal, setDoseModal] = useState(null); // {compound, dateStr}
 
   const starts = active.flatMap(c=>c.dayStages.map(s=>s.fromDate)).filter(Boolean);
   const earliest = starts.length?starts.reduce((a,b)=>a<b?a:b):cycleStart;
@@ -344,7 +417,7 @@ function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials }
         {todayDoses.length===0
           ?<div style={{fontFamily:F.sans,fontSize:14,color:C.textMuted}}>Rest day — no doses scheduled.</div>
           :todayDoses.map(({c,ds,units,logged})=>(
-            <DoseRow key={c.id} compound={c} dateStr={today} logged={logged} units={units} ds={ds} onOpenModal={setDoseModal}/>
+            <DoseRow key={c.id} compound={c} dateStr={today} logged={logged} units={units} ds={ds} onOpenModal={setDoseModal} onOpenNotify={setNotifyModal}/>
           ))
         }
       </div>
@@ -413,28 +486,11 @@ function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials }
                         {DAY_NAMES[d.getDay()]} {MON[d.getMonth()]} {d.getDate()}{isToday?" · TODAY":""}
                       </div>
                       {dayMap[ds].map(({c,doseStage,units,logged})=>(
-                        <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 16px 8px"}}>
-                          <div onClick={()=>setDoseModal({compound:c,dateStr:ds})} style={{
-                            width:20,height:20,borderRadius:4,flexShrink:0,cursor:"pointer",
-                            border:`2px solid ${logged?C.accent:C.borderDark}`,
-                            background:logged?C.accent:"transparent",
-                            display:"flex",alignItems:"center",justifyContent:"center",
-                          }}>
-                            {logged&&<span style={{color:C.bg,fontSize:11}}>✓</span>}
-                          </div>
-                          <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-                            <div style={{width:8,height:8,borderRadius:"50%",background:c.color,flexShrink:0}}/>
-                            <span style={{fontFamily:F.sans,fontSize:14,color:logged?C.textMuted:C.text,textDecoration:logged?"line-through":"none"}}>{c.name}</span>
-                          </div>
-                          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                            {logged?.units&&<span style={{fontFamily:F.mono,fontSize:11,color:C.accent}}>{logged.units}u</span>}
-                            {(doseStage?.doseMg||units)&&(
-                              <span style={{fontFamily:F.mono,fontSize:12,color:C.textSec,background:C.surfaceAlt,padding:"2px 7px",borderRadius:6}}>
-                                {doseStage?.doseMg?`${doseStage.doseMg}mg`:""}{units?` · ${units}u`:""}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <DoseRow key={c.id} compound={c} dateStr={ds} logged={logged} units={units}
+                          ds={doseStage} inWeek={true}
+                          onOpenModal={setDoseModal}
+                          onOpenNotify={setNotifyModal}
+                        />
                       ))}
                     </div>
                   );
@@ -452,6 +508,14 @@ function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials }
           existingLog={logs[doseModal.compound.id]?.[doseModal.dateStr]||null}
           onSave={entry=>{onToggle(doseModal.compound.id,doseModal.dateStr,entry);setDoseModal(null);}}
           onClose={()=>setDoseModal(null)}
+        />
+      )}
+      {notifyModal&&(
+        <NotificationModal
+          compound={notifyModal}
+          userId={user?.id}
+          onSave={updated=>{ onUpdateCompound(updated); setNotifyModal(null); }}
+          onClose={()=>setNotifyModal(null)}
         />
       )}
     </div>
@@ -1038,13 +1102,11 @@ export default function App() {
   const[flashSaved,setFlashSaved]=useState(false);
   const[showChangePw,setShowChangePw]=useState(false);
   const[showMenu,setShowMenu]=useState(false);
-  const[pushEnabled,setPushEnabled]=useState(false);
 
   const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
     if(!user){setLoading(false);return;}
-    setPushEnabled(localStorage.getItem("push-"+user.id)==="1");
     loadData(user.id).then(d=>{
       if(d){
         setCompounds(d.compounds||DEFAULT_COMPOUNDS);
@@ -1141,14 +1203,6 @@ export default function App() {
                 <>
                   <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:98}}/>
                   <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",zIndex:999,minWidth:180,boxShadow:"0 8px 30px #000a"}}>
-                    <button onClick={async()=>{
-                      const sub = await registerPush(user.id);
-                      if(sub){localStorage.setItem("push-"+user.id,"1");setPushEnabled(true);}
-                      setShowMenu(false);
-                    }} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:pushEnabled?C.accent:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
-                      {pushEnabled ? "✓ Notifications on" : "Enable Notifications"}
-                    </button>
-                    <div style={{height:1,background:C.border}}/>
                     <button onClick={()=>{setShowChangePw(true);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Change Password</button>
                     <div style={{height:1,background:C.border}}/>
                     <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.red,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Sign Out</button>
@@ -1178,7 +1232,7 @@ export default function App() {
         </div>
       </div>
 
-      {tab==="schedule"&&<ScheduleTab compounds={compounds} logs={logs} onToggle={toggleLog} onMarkAll={markAll} cycleStart={cycleStart} vials={vials}/>}
+      {tab==="schedule"&&<ScheduleTab compounds={compounds} logs={logs} onToggle={toggleLog} onMarkAll={markAll} cycleStart={cycleStart} vials={vials} user={user} onUpdateCompound={c=>updateCompounds(compounds.map(x=>x.id===c.id?c:x))}/>}
       {tab==="recon"&&<ReconTab compounds={compounds} vials={vials}/>}
       {tab==="inventory"&&<InventoryTab compounds={compounds} vials={vials} onUpdateVials={updateVials}/>}
       {tab==="data"&&<DataTab bodyLog={bodyLog} labLog={labLog} onUpdateBodyLog={updateBodyLog} onUpdateLabLog={updateLabLog}/>}
