@@ -160,7 +160,23 @@ async function registerPush(userId) {
   try {
     const session = JSON.parse(localStorage.getItem("sb-session") || "null");
     const token = session?.access_token || SUPABASE_KEY;
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    // Register inline service worker using blob to avoid file serving issues
+    const swCode = `
+      self.addEventListener('push', function(e) {
+        const d = e.data ? e.data.json() : {};
+        e.waitUntil(self.registration.showNotification(d.title || 'Stack Tracker', {
+          body: d.body || 'Time to dose.',
+          tag: d.tag || 'stack-tracker',
+        }));
+      });
+      self.addEventListener('notificationclick', function(e) {
+        e.notification.close();
+        e.waitUntil(clients.openWindow('/'));
+      });
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(swBlob);
+    const reg = await navigator.serviceWorker.register(swUrl, {scope: '/'});
     await navigator.serviceWorker.ready;
     const perm = await Notification.requestPermission();
     if (perm !== "granted") return null;
