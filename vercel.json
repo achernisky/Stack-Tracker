@@ -1,0 +1,9 @@
+{
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/notify.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

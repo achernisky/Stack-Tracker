@@ -256,8 +256,26 @@ function fmt12hr(time24) {
   return `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
 }
 
+// Convert local HH:MM to UTC HH:MM for storage
+function localToUTC(localTime) {
+  if (!localTime) return "";
+  const [h, m] = localTime.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`;
+}
+
+// Convert UTC HH:MM to local HH:MM for display
+function utcToLocal(utcTime) {
+  if (!utcTime) return "";
+  const [h, m] = utcTime.split(":").map(Number);
+  const d = new Date();
+  d.setUTCHours(h, m, 0, 0);
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
 function NotificationModal({ compound, onSave, onClose, userId }) {
-  const [time, setTime] = React.useState(compound.notifyTime || "");
+  const [time, setTime] = React.useState(compound.notifyTime ? utcToLocal(compound.notifyTime) : "");
   const [enabled, setEnabled] = React.useState(compound.notifyEnabled !== false);
 
   const handle = async () => {
@@ -277,7 +295,7 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
         }
       }
     }
-    onSave({ ...compound, notifyTime: time, notifyEnabled: enabled });
+    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
     onClose();
   };
 
@@ -371,7 +389,7 @@ function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModa
         )}
         {compound.notifyTime && (
           <span style={{fontFamily:F.mono,fontSize:10,color:notifyOn?C.accent:C.textMuted}}>
-            {notifyOn ? "🔔" : "🔕"} {fmt12hr(compound.notifyTime)}
+            {notifyOn ? "🔔" : "🔕"} {fmt12hr(utcToLocal(compound.notifyTime))}
           </span>
         )}
       </div>
