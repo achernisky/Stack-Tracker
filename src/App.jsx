@@ -192,7 +192,7 @@ async function registerPush(userId) {
     return sub;
   } catch(e) {
     console.error("Push registration failed:", e.name, e.message);
-    return null;
+    return { error: e.name + ": " + e.message };
   }
 }
 
@@ -322,10 +322,10 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
     if (enabled) {
       setStatus("Registering...");
       const sub = await registerPush(userId);
-      if (sub) {
+      if (sub && !sub.error) {
         setStatus("✓ Push notifications enabled");
       } else {
-        setStatus("✗ Push failed — settings saved anyway");
+        setStatus("✗ " + (sub?.error || "Push failed — check permissions"));
       }
       // Save and close after showing status
       setTimeout(() => {
