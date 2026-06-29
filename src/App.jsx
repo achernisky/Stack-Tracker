@@ -317,16 +317,24 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
   const [time, setTime] = React.useState(compound.notifyTime ? utcToLocal(compound.notifyTime) : "");
   const [enabled, setEnabled] = React.useState(compound.notifyEnabled !== false);
   const [saving, setSaving] = React.useState(false);
+  const [status, setStatus] = React.useState("");
 
   const handle = async () => {
     if (saving) return;
     setSaving(true);
+    setStatus("Registering...");
     if (enabled) {
-      console.log("Registering push for", userId);
       const sub = await registerPush(userId);
-      console.log("Push result:", sub ? "success" : "failed");
+      if (sub) {
+        setStatus("✓ Notifications enabled");
+        setTimeout(() => { onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled }); onClose(); }, 1000);
+      } else {
+        setStatus("✗ Failed — check browser notification permissions");
+        setSaving(false);
+      }
+      return;
     }
-    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
+    onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: false });
     onClose();
   };
 
@@ -391,8 +399,11 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
           </div>
         )}
 
+        {status && <div style={{fontFamily:F.sans,fontSize:13,color:status.includes("✓")?C.accent:C.red,marginBottom:12,textAlign:"center"}}>{status}</div>}
         <div style={{display:"flex",gap:10}}>
-          <button onClick={handle} style={{...bSty("primary"),flex:1,padding:12}}>Save</button>
+          <button onClick={handle} disabled={saving} style={{...bSty("primary"),flex:1,padding:12,opacity:saving?0.7:1}}>
+            {saving?"Working...":"Save"}
+          </button>
           <button onClick={onClose} style={{...bSty("outline"),flex:1,padding:12}}>Cancel</button>
         </div>
       </div>
