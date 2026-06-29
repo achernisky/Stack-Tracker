@@ -1,4 +1,4 @@
-const webpush = require("web-push");
+import webpush from "web-push";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -25,7 +25,7 @@ async function sbGet(path) {
   return r.json();
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.headers["authorization"] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -57,3 +57,11 @@ module.exports = async function handler(req, res) {
           body: `Time to dose ${compound.name}${doseStr ? " — " + doseStr : ""}`,
           tag: compound.id,
         }));
+        sent++;
+      } catch(e) {
+        errors.push(`${compound.name}: ${e.message}`);
+      }
+    }
+  }
+  res.json({ ok: true, sent, errors, time: timeNow, day: dayName });
+}
