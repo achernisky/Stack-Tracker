@@ -155,15 +155,11 @@ async function saveData(d, userId) {
 }
 
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
-const VAPID_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
+const STACK_VAPID_KEY = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
+function urlB64ToUint8Array(base64Str) {
+  const b64 = (base64Str + "=".repeat((4 - base64Str.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
 }
 
 async function registerPush(userId) {
@@ -174,7 +170,7 @@ async function registerPush(userId) {
     if (permission !== "granted") return null;
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey: urlB64ToUint8Array(STACK_VAPID_KEY),
     });
     // Save subscription to Supabase
     await sbFetch("/rest/v1/push_subscriptions?user_id=eq." + userId, {
