@@ -343,7 +343,7 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
                 setTime(`${h}:${e.target.value}`);
               }} style={{...iSty, flex:1}}>
                 <option value="">Min</option>
-                {["00","15","30","45"].map(m=><option key={m} value={m}>{m}</option>)}
+                {Array.from({length:60},(_,i)=>String(i).padStart(2,"0")).map(m=><option key={m} value={m}>{m}</option>)}
               </select>
               <select value={time ? (parseInt(time.split(":")[0]) >= 12 ? "PM" : "AM") : ""} onChange={e=>{
                 if (!time) return;
