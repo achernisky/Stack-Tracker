@@ -310,20 +310,9 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
 
   const handle = async () => {
     if (enabled) {
-      // Register push if not already done
-      if (!localStorage.getItem("push-granted")) {
-        if (typeof Notification !== "undefined") {
-          const perm = await Notification.requestPermission();
-          if (perm === "granted") {
-            localStorage.setItem("push-granted", "1");
-            // Register service worker subscription
-            if (window.stackPush && user_id) {
-              await window.stackPush.register(userId, SUPABASE_URL, SUPABASE_KEY,
-                JSON.parse(localStorage.getItem("sb-session")||"null")?.access_token || SUPABASE_KEY);
-            }
-          }
-        }
-      }
+      console.log("Registering push for", userId);
+      const sub = await registerPush(userId);
+      console.log("Push result:", sub ? "success" : "failed");
     }
     onSave({ ...compound, notifyTime: localToUTC(time), notifyEnabled: enabled });
     onClose();
