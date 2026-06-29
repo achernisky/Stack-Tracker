@@ -248,6 +248,14 @@ function DoseLogModal({ compound, dateStr, existingLog, onSave, onClose }) {
 }
 
 // ─── SCHEDULE TAB ─────────────────────────────────────────────────────────────
+function fmt12hr(time24) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
+}
+
 function NotificationModal({ compound, onSave, onClose, userId }) {
   const [time, setTime] = React.useState(compound.notifyTime || "");
   const [enabled, setEnabled] = React.useState(compound.notifyEnabled !== false);
@@ -300,7 +308,37 @@ function NotificationModal({ compound, onSave, onClose, userId }) {
         {enabled && (
           <div style={{marginBottom:20}}>
             <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:6}}>Notification time</span>
-            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={iSty}/>
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...iSty, display:"none"}} id="notify-time-input"/>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <select value={time ? (parseInt(time.split(":")[0]) % 12 || 12) : ""} onChange={e=>{
+                const h = parseInt(e.target.value);
+                const mins = time ? time.split(":")[1] : "00";
+                const isPM = time ? parseInt(time.split(":")[0]) >= 12 : false;
+                const h24 = isPM ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+                setTime(`${String(h24).padStart(2,"0")}:${mins}`);
+              }} style={{...iSty, flex:1}}>
+                <option value="">Hour</option>
+                {[1,2,3,4,5,6,7,8,9,10,11,12].map(h=><option key={h} value={h}>{h}</option>)}
+              </select>
+              <select value={time ? time.split(":")[1] : ""} onChange={e=>{
+                const h = time ? time.split(":")[0] : "08";
+                setTime(`${h}:${e.target.value}`);
+              }} style={{...iSty, flex:1}}>
+                <option value="">Min</option>
+                {["00","15","30","45"].map(m=><option key={m} value={m}>{m}</option>)}
+              </select>
+              <select value={time ? (parseInt(time.split(":")[0]) >= 12 ? "PM" : "AM") : ""} onChange={e=>{
+                if (!time) return;
+                const [h, m] = time.split(":").map(Number);
+                const isPM = e.target.value === "PM";
+                const h24 = isPM ? (h % 12 + 12) : (h % 12);
+                setTime(`${String(h24).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
+              }} style={{...iSty, flex:1}}>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
+            {time && <div style={{fontFamily:F.sans,fontSize:12,color:C.accentText,marginTop:6}}>{fmt12hr(time)} — your device timezone</div>}
           </div>
         )}
 
@@ -333,7 +371,7 @@ function DoseRow({compound, dateStr, logged, units, ds, inWeek=false, onOpenModa
         )}
         {compound.notifyTime && (
           <span style={{fontFamily:F.mono,fontSize:10,color:notifyOn?C.accent:C.textMuted}}>
-            {notifyOn ? "🔔" : "🔕"} {compound.notifyTime}
+            {notifyOn ? "🔔" : "🔕"} {fmt12hr(compound.notifyTime)}
           </span>
         )}
       </div>
@@ -1021,6 +1059,7 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
           <div style={{marginBottom:14}}>
             <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Notification time</span>
             <input type="time" value={c.notifyTime||""} onChange={e=>upd({...c,notifyTime:e.target.value})} style={iSty}/>
+            {c.notifyTime && <div style={{fontFamily:F.sans,fontSize:11,color:C.accentText,marginTop:4}}>{fmt12hr(c.notifyTime)}</div>}
             <div style={{fontFamily:F.sans,fontSize:11,color:C.textMuted,marginTop:4}}>Reminder fires on scheduled days at this time</div>
           </div>
 
