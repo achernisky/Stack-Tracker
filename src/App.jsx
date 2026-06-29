@@ -170,8 +170,13 @@ async function registerPush(userId) {
     const existing = await reg.pushManager.getSubscription();
     if (existing) { console.log("Unsubscribing existing"); await existing.unsubscribe(); }
     const vapidKey = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
-    const b64 = (vapidKey + "=".repeat((4 - vapidKey.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
-    const appKey = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const b64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
+    const raw = atob(padded);
+    const appKey = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      appKey[i] = raw.charCodeAt(i);
+    }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: appKey,
