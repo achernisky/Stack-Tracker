@@ -169,7 +169,7 @@ async function registerPush(userId) {
     if (perm !== "granted") return null;
     const existing = await reg.pushManager.getSubscription();
     if (existing) { console.log("Unsubscribing existing"); await existing.unsubscribe(); }
-    const vapidKey = "BPhHKuFrCLXz7qfuFgWqLyg58_9reUiLLzE9PwIXg9ew33N_tQ69bZamk59Z7CvHFQsj8c6RHeT208mBfXFomNA";
+    const vapidKey = "BG49gZsJGb1nV2OnSbRkKrdWQ_9FjkD-Ubvza-d4fXnApHKksQNNe4-f1y4VNYwWxCaxmzh36tKui1htyMeN7X4";
     const b64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
     const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
     const raw = atob(padded);
@@ -188,7 +188,10 @@ async function registerPush(userId) {
       "Authorization": "Bearer " + token,
       "Prefer": "return=minimal"
     };
-    await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions?user_id=eq." + userId, { method: "DELETE", headers });
+    // Only delete subscription with same endpoint (replace existing for this device)
+    const subJson = JSON.stringify(sub);
+    const endpoint = sub.endpoint;
+    await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions?user_id=eq." + userId + "&subscription=like.*" + encodeURIComponent(endpoint.substring(0,50)) + "*", { method: "DELETE", headers });
     const saveRes = await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions", {
       method: "POST", headers,
       body: JSON.stringify({ user_id: userId, subscription: JSON.stringify(sub) })
