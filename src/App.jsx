@@ -154,6 +154,13 @@ async function saveData(d, userId) {
   } catch {}
 }
 
+// ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+async function registerPush(userId) {
+  const session = JSON.parse(localStorage.getItem("sb-session") || "null");
+  const token = session?.access_token || SUPABASE_KEY;
+  return window.stackPush?.register(userId, SUPABASE_URL, SUPABASE_KEY, token) || null;
+}
+
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -947,6 +954,11 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
             <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Name</span>
             <input value={c.name} onChange={e=>upd({...c,name:e.target.value})} style={iSty}/>
           </div>
+          <div style={{marginBottom:14}}>
+            <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Notification time</span>
+            <input type="time" value={c.notifyTime||""} onChange={e=>upd({...c,notifyTime:e.target.value})} style={iSty}/>
+            <div style={{fontFamily:F.sans,fontSize:11,color:C.textMuted,marginTop:4}}>Reminder fires on scheduled days at this time</div>
+          </div>
 
           {c.vialMg!==null&&(
             <>
@@ -1026,11 +1038,13 @@ export default function App() {
   const[flashSaved,setFlashSaved]=useState(false);
   const[showChangePw,setShowChangePw]=useState(false);
   const[showMenu,setShowMenu]=useState(false);
+  const[pushEnabled,setPushEnabled]=useState(false);
 
   const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
     if(!user){setLoading(false);return;}
+    setPushEnabled(localStorage.getItem("push-"+user.id)==="1");
     loadData(user.id).then(d=>{
       if(d){
         setCompounds(d.compounds||DEFAULT_COMPOUNDS);
@@ -1127,7 +1141,14 @@ export default function App() {
                 <>
                   <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:98}}/>
                   <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",zIndex:999,minWidth:180,boxShadow:"0 8px 30px #000a"}}>
-
+                    <button onClick={async()=>{
+                      const sub = await registerPush(user.id);
+                      if(sub){localStorage.setItem("push-"+user.id,"1");setPushEnabled(true);}
+                      setShowMenu(false);
+                    }} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:pushEnabled?C.accent:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                      {pushEnabled ? "✓ Notifications on" : "Enable Notifications"}
+                    </button>
+                    <div style={{height:1,background:C.border}}/>
                     <button onClick={()=>{setShowChangePw(true);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Change Password</button>
                     <div style={{height:1,background:C.border}}/>
                     <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.red,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Sign Out</button>
