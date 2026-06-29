@@ -12,7 +12,7 @@ webpush.setVapidDetails(
 );
 
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-function todayDayName() { return DAY_NAMES[new Date().getDay()]; }
+function todayDayName() { return DAY_NAMES[new Date().getUTCDay()]; }
 function currentTime() {
   const now = new Date();
   return `${String(now.getUTCHours()).padStart(2,"0")}:${String(now.getUTCMinutes()).padStart(2,"0")}`;
@@ -38,6 +38,7 @@ module.exports = async function handler(req, res) {
   const userData = await sbGet("/rest/v1/stack_tracker?select=user_id,data");
 
   let sent = 0;
+  const errors = [];
   for (const sub of subs) {
     const userRow = userData.find(u => u.user_id === sub.user_id);
     if (!userRow?.data?.compounds) continue;
@@ -56,9 +57,3 @@ module.exports = async function handler(req, res) {
           body: `Time to dose ${compound.name}${doseStr ? " — " + doseStr : ""}`,
           tag: compound.id,
         }));
-        sent++;
-      } catch(e) { console.error("Push failed:", e.message); }
-    }
-  }
-  res.json({ ok: true, sent, time: timeNow, day: dayName });
-};

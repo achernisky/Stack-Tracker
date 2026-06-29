@@ -169,7 +169,7 @@ async function registerPush(userId) {
     if (perm !== "granted") return null;
     const existing = await reg.pushManager.getSubscription();
     if (existing) { console.log("Unsubscribing existing"); await existing.unsubscribe(); }
-    const vapidKey = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
+    const vapidKey = "BPhHKuFrCLXz7qfuFgWqLyg58_9reUiLLzE9PwIXg9ew33N_tQ69bZamk59Z7CvHFQsj8c6RHeT208mBfXFomNA";
     const b64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
     const padded = b64 + "=".repeat((4 - b64.length % 4) % 4);
     const raw = atob(padded);
