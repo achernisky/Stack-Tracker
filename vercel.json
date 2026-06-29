@@ -1,4 +1,10 @@
 {
   "buildCommand": "vite build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/sw.js", "dest": "/sw.js" },
+    { "src": "/(.*)\\.(.+)", "dest": "/$1.$2" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
