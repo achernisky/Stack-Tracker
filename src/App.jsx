@@ -612,7 +612,7 @@ function ScheduleTab({ compounds, logs, onToggle, onMarkAll, cycleStart, vials, 
         <NotificationModal
           compound={notifyModal}
           userId={user?.id}
-          onSave={updated=>{ onUpdateCompound(updated); setNotifyModal(null); }}
+          onSave={updated=>{ onUpdateCompound(updated); }}
           onClose={()=>setNotifyModal(null)}
         />
       )}
