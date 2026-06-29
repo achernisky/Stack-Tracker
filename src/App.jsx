@@ -154,7 +154,46 @@ async function saveData(d, userId) {
   } catch {}
 }
 
-// ─── UTILS ────────────────────────────────────────────────────────────────────
+// ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa40HI2KAtGRB5G9L3kBSBMbKLVlhCoJwqBOYCJIcJHBV7cNFCMSOuRVjNFTE4";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function registerPush(userId) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return null;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    // Save subscription to Supabase
+    await sbFetch("/rest/v1/push_subscriptions?user_id=eq." + userId, {
+      method: "DELETE",
+      headers: { "Prefer": "return=minimal" },
+    });
+    await sbFetch("/rest/v1/push_subscriptions", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ user_id: userId, subscription: JSON.stringify(sub) }),
+    });
+    return sub;
+  } catch (e) {
+    console.error("Push registration failed:", e);
+    return null;
+  }
+}
+
+
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DAY_FULL  = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -948,6 +987,12 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
             <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Name</span>
             <input value={c.name} onChange={e=>upd({...c,name:e.target.value})} style={iSty}/>
           </div>
+          <div style={{marginBottom:14}}>
+            <span style={{fontFamily:F.sans,fontSize:12,color:C.textSec,display:"block",marginBottom:5}}>Notification time</span>
+            <input type="time" value={c.notifyTime||""} onChange={e=>upd({...c,notifyTime:e.target.value})} style={iSty}
+              placeholder="e.g. 20:00"/>
+            <div style={{fontFamily:F.sans,fontSize:11,color:C.textMuted,marginTop:4}}>Set a time to get a push reminder on scheduled days</div>
+          </div>
           {c.vialMg!==null&&(
             <>
               <div style={{display:"flex",gap:10,marginBottom:14}}>
@@ -1026,6 +1071,11 @@ export default function App() {
   const[flashSaved,setFlashSaved]=useState(false);
   const[showChangePw,setShowChangePw]=useState(false);
   const[showMenu,setShowMenu]=useState(false);
+  const[pushEnabled,setPushEnabled]=useState(false);
+
+  useEffect(()=>{
+    if(user) setPushEnabled(localStorage.getItem("push-enabled-"+user.id)==="1");
+  },[user]);
   const[user,setUser]=useState(()=>getSession()?.user||null);
 
   useEffect(()=>{
@@ -1123,11 +1173,22 @@ export default function App() {
             <div style={{position:"relative"}}>
               <button onClick={()=>setShowMenu(m=>!m)} style={{padding:"8px 12px",borderRadius:8,fontFamily:F.sans,fontSize:18,fontWeight:600,cursor:"pointer",background:C.surfaceAlt,color:C.textSec,border:`1px solid ${C.border}`,lineHeight:1}}>⋮</button>
               {showMenu&&(
-                <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",zIndex:50,minWidth:160,boxShadow:"0 4px 20px #0006"}}>
-                  <button onClick={()=>{setShowChangePw(true);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"12px 16px",fontFamily:F.sans,fontSize:14,color:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Change Password</button>
-                  <div style={{height:1,background:C.border}}/>
-                  <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"12px 16px",fontFamily:F.sans,fontSize:14,color:C.red,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Sign Out</button>
-                </div>
+                <>
+                  <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:98}}/>
+                  <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",zIndex:999,minWidth:180,boxShadow:"0 8px 30px #000a"}}>
+                    <button onClick={async()=>{
+                      const sub=await registerPush(user.id);
+                      if(sub){localStorage.setItem("push-enabled-"+user.id,"1");setPushEnabled(true);}
+                      setShowMenu(false);
+                    }} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:pushEnabled?C.accent:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>
+                      {pushEnabled?"✓ Notifications on":"Enable Notifications"}
+                    </button>
+                    <div style={{height:1,background:C.border}}/>
+                    <button onClick={()=>{setShowChangePw(true);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.text,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Change Password</button>
+                    <div style={{height:1,background:C.border}}/>
+                    <button onClick={()=>{signOut();setUser(null);setCompounds(null);setVials(null);setLogs(null);setShowMenu(false);}} style={{display:"block",width:"100%",padding:"14px 16px",fontFamily:F.sans,fontSize:15,color:C.red,background:"transparent",border:"none",cursor:"pointer",textAlign:"left"}}>Sign Out</button>
+                  </div>
+                </>
               )}
             </div>
           </div>
