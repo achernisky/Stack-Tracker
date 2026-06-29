@@ -157,6 +157,8 @@ async function saveData(d, userId) {
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
 async function registerPush(userId) {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  if (window.__pushBusy) return null;
+  window.__pushBusy = true;
   try {
     const session = JSON.parse(localStorage.getItem("sb-session") || "null");
     const token = session?.access_token || SUPABASE_KEY;
@@ -176,7 +178,7 @@ async function registerPush(userId) {
       userVisibleOnly: true,
       applicationServerKey: appKey,
     });
-    console.log("Subscribed:", JSON.stringify(sub));
+    console.log("Subscribed:", JSON.stringify(sub).substring(0, 100));
     const headers = {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
@@ -184,13 +186,16 @@ async function registerPush(userId) {
       "Prefer": "return=minimal"
     };
     await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions?user_id=eq." + userId, { method: "DELETE", headers });
-    await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions", {
+    const saveRes = await fetch(SUPABASE_URL + "/rest/v1/push_subscriptions", {
       method: "POST", headers,
       body: JSON.stringify({ user_id: userId, subscription: JSON.stringify(sub) })
     });
+    console.log("Saved subscription:", saveRes.status);
+    window.__pushBusy = false;
     return sub;
   } catch(e) {
     console.error("Push registration failed:", e.name, e.message);
+    window.__pushBusy = false;
     return null;
   }
 }
@@ -311,8 +316,11 @@ function utcToLocal(utcTime) {
 function NotificationModal({ compound, onSave, onClose, userId }) {
   const [time, setTime] = React.useState(compound.notifyTime ? utcToLocal(compound.notifyTime) : "");
   const [enabled, setEnabled] = React.useState(compound.notifyEnabled !== false);
+  const [saving, setSaving] = React.useState(false);
 
   const handle = async () => {
+    if (saving) return;
+    setSaving(true);
     if (enabled) {
       console.log("Registering push for", userId);
       const sub = await registerPush(userId);
@@ -1278,7 +1286,7 @@ export default function App() {
               {flashSaved?"Saved ✓":"·"}
             </div>
             <div style={{position:"relative"}}>
-              <button onClick={()=>setShowMenu(m=>!m)} style={{padding:"8px 12px",borderRadius:8,fontFamily:F.sans,fontSize:18,fontWeight:600,cursor:"pointer",background:C.surfaceAlt,color:C.textSec,border:`1px solid ${C.border}`,lineHeight:1}}>⋮</button>
+              <button onClick={()=>setShowMenu(m=>!m)} style={{padding:"8px 14px",borderRadius:8,fontFamily:F.sans,fontSize:20,fontWeight:700,cursor:"pointer",background:C.surfaceAlt,color:C.textSec,border:`1px solid ${C.border}`,lineHeight:1,letterSpacing:2}}>···</button>
               {showMenu&&(
                 <>
                   <div onClick={()=>setShowMenu(false)} style={{position:"fixed",inset:0,zIndex:98}}/>
