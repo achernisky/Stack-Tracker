@@ -1195,6 +1195,343 @@ function EditPlanTab({compounds,onUpdateCompounds,cycleStart,onUpdateCycleStart}
   );
 }
 
+
+// ─── HELP TAB ─────────────────────────────────────────────────────────────────
+const WIZARD_STEPS = [
+  {
+    id: "welcome",
+    icon: "💊",
+    title: "Welcome to Stack Tracker",
+    subtitle: "Your personal peptide & hormone protocol manager",
+    content: "Track your compounds, manage vials, log doses, and get push notifications — all in one place. This guide will walk you through every feature.",
+    tip: null,
+  },
+  {
+    id: "compounds",
+    icon: "🧬",
+    title: "Adding Compounds",
+    subtitle: "Edit Plan → + Add",
+    content: "Go to the Edit Plan tab and tap + Add to create a compound. Give it a name, set the vial size and BAC water volume, then configure your dose and which days you inject.",
+    example: {
+      label: "Example",
+      lines: [
+        { key: "Name", val: "Retatrutide" },
+        { key: "Vial", val: "10mg" },
+        { key: "BAC Water", val: "2 mL" },
+        { key: "Dose", val: "2mg" },
+        { key: "Days", val: "Thursday" },
+      ]
+    },
+    tip: "Tip: Set status to Active when you start dosing, Pending while waiting for your order.",
+  },
+  {
+    id: "schedule",
+    icon: "📅",
+    title: "Schedule Tab",
+    subtitle: "Your daily & weekly dose calendar",
+    content: "The Schedule tab shows today's doses at the top and a week-by-week history below. Tap the checkbox to log a dose — or tap the compound name to set a notification time.",
+    example: {
+      label: "Thursday looks like",
+      lines: [
+        { key: "☐ Retatrutide", val: "4mg · 40u" },
+        { key: "☐ Tirzepatide", val: "2.5mg · 25u" },
+        { key: "✓ Testosterone", val: "12u" },
+      ]
+    },
+    tip: "Tip: Tap Mark all on any week to check off all doses at once.",
+  },
+  {
+    id: "logging",
+    icon: "✏️",
+    title: "Logging a Dose",
+    subtitle: "Tap the compound name to open the dose log",
+    content: "When you tap a compound name on the schedule, a modal opens where you can record the exact units drawn and any notes — energy levels, appetite, side effects. This data stays private to you.",
+    example: {
+      label: "Dose log entry",
+      lines: [
+        { key: "Compound", val: "Retatrutide" },
+        { key: "Units drawn", val: "40u" },
+        { key: "Notes", val: "Good energy, appetite down" },
+      ]
+    },
+    tip: "Tip: The units field pre-fills based on your dose — just confirm or adjust.",
+  },
+  {
+    id: "notifications",
+    icon: "🔔",
+    title: "Notifications",
+    subtitle: "Per-compound dose reminders",
+    content: "Tap any compound name on the Schedule tab to open the notification settings. Toggle notifications ON, pick a time, and save. You'll get a push reminder on your device at that time on scheduled days.",
+    example: {
+      label: "Setting up Retatrutide reminder",
+      lines: [
+        { key: "Compound", val: "Retatrutide" },
+        { key: "Notifications", val: "ON" },
+        { key: "Time", val: "8:00 PM" },
+        { key: "Fires on", val: "Thursdays" },
+      ]
+    },
+    tip: "Tip: iOS requires the app to be added to your home screen from Safari for notifications to work.",
+  },
+  {
+    id: "recon",
+    icon: "🧪",
+    title: "Reconstitution Calculator",
+    subtitle: "Live concentration math",
+    content: "The Reconstitution tab calculates exactly how many units to draw for any dose. Enter your vial size and how much BAC water you used — the calculator shows mg/mL, mcg/unit, and units to draw on a U-100 syringe.",
+    example: {
+      label: "Retatrutide example",
+      lines: [
+        { key: "Vial", val: "10mg" },
+        { key: "BAC Water", val: "2 mL" },
+        { key: "Concentration", val: "5 mg/mL" },
+        { key: "Per unit", val: "50 mcg/unit" },
+        { key: "2mg dose →", val: "40 units" },
+      ]
+    },
+    tip: "Tip: Change the Dose field to calculate units for any titration amount without affecting your saved protocol.",
+  },
+  {
+    id: "inventory",
+    icon: "📦",
+    title: "Inventory",
+    subtitle: "Track every vial — active and in reserve",
+    content: "Add each vial you have with vendor, total mg, and how much has been used. Mark one as Active (currently open) and keep the rest as Reserve. When your active vial is done, tap Activate on a reserve.",
+    example: {
+      label: "Retatrutide inventory",
+      lines: [
+        { key: "Active", val: "Apex · 23mg left" },
+        { key: "Reserve", val: "5× Apex sealed" },
+        { key: "Reserve", val: "10× Cici Factory inbound" },
+      ]
+    },
+    tip: "Tip: Set a Reconstituted date on active vials — the app will warn you when they're approaching 28 days.",
+  },
+  {
+    id: "data",
+    icon: "📊",
+    title: "Data Tab",
+    subtitle: "Body comp & lab results over time",
+    content: "Log your body composition measurements (weight, body fat %, waist) and lab panel results (Total T, Free T, E2, SHBG, HCT, PSA) to track your progress alongside your protocol.",
+    example: {
+      label: "Lab panel entry",
+      lines: [
+        { key: "Total T", val: "850 ng/dL" },
+        { key: "Free T", val: "18 pg/mL" },
+        { key: "E2", val: "28 pg/mL" },
+        { key: "HCT", val: "48%" },
+      ]
+    },
+    tip: "Tip: HCT over 52% shows in amber as a flag — important to monitor on TRT.",
+  },
+  {
+    id: "done",
+    icon: "✅",
+    title: "You're all set",
+    subtitle: "Start by adding your first compound",
+    content: "Head to Edit Plan → + Add to set up your first compound. Once you've added it, come back to Schedule to start logging doses and setting up notifications.",
+    tip: "You can always come back to this Help tab for a reference guide on any feature.",
+  },
+];
+
+function HelpTab({ onStartWizard }) {
+  const sections = [
+    {
+      icon: "🧬", title: "Adding Compounds", tab: "Edit Plan",
+      steps: [
+        "Go to Edit Plan tab",
+        "Tap + Add button",
+        "Enter compound name (e.g. Retatrutide)",
+        "Set vial size in mg and BAC water in mL",
+        "Set your dose in mg",
+        "Toggle the days you inject",
+        "Set notification time if desired",
+        "Set status to Active when ready to start",
+      ]
+    },
+    {
+      icon: "📅", title: "Using the Schedule", tab: "Schedule",
+      steps: [
+        "Today's doses appear at the top",
+        "Tap the checkbox ☐ to log a dose",
+        "Tap the compound name to log units drawn or set notifications",
+        "Scroll down to see week-by-week history",
+        "Tap Mark all to check off an entire week",
+        "🔔 icon shows notification is set for that compound",
+      ]
+    },
+    {
+      icon: "🧪", title: "Reconstitution Calculator", tab: "Reconstitution",
+      steps: [
+        "Select your compound",
+        "Enter vial size (mg) — matches your vial label",
+        "Enter BAC water added (mL)",
+        "Concentration (mg/mL) calculates automatically",
+        "Enter your dose in mg",
+        "Units to draw shows on U-100 syringe",
+        "Change dose field to calculate any titration amount",
+      ]
+    },
+    {
+      icon: "📦", title: "Managing Inventory", tab: "Inventory",
+      steps: [
+        "Tap + Add vial for each vial you have",
+        "Set vendor, total mg, and used mg",
+        "Mark one as Active (open) and rest as Reserve",
+        "Set Reconstituted date on active vials",
+        "App warns you when approaching 28-day expiry",
+        "Tap Activate on a reserve when you open a new vial",
+        "Low stock alert fires when ≤2 reserves remain",
+      ]
+    },
+    {
+      icon: "🔔", title: "Setting Up Notifications", tab: "Schedule",
+      steps: [
+        "Open the app from home screen in Safari (iOS) or Edge (Android/desktop)",
+        "Go to Schedule tab",
+        "Tap a compound name on any dose row",
+        "Toggle Notifications ON",
+        "Set your preferred time using the hour/minute/AM PM selectors",
+        "Tap Save — you will see ✓ Push notifications enabled",
+        "Notification fires at that time on your scheduled days only",
+      ]
+    },
+    {
+      icon: "📊", title: "Tracking Data", tab: "Data",
+      steps: [
+        "Go to Data tab",
+        "Tap Body Comp to log weight, body fat %, and waist measurements",
+        "Tap Lab Results to log your blood panel",
+        "Track Total T, Free T, E2, SHBG, HCT, PSA",
+        "HCT over 52% shows in amber as a warning",
+        "Log regularly to track trends alongside your protocol",
+      ]
+    },
+  ];
+
+  return (
+    <div style={{padding:"16px 16px 120px"}}>
+      {/* Hero */}
+      <div style={{...card({marginBottom:20, background:C.accentLight, borderColor:C.accent+"40", textAlign:"center", padding:"24px 20px"})}>
+        <div style={{fontSize:40, marginBottom:12}}>💊</div>
+        <div style={{fontFamily:F.serif, fontSize:22, fontWeight:700, color:C.text, marginBottom:8}}>Stack Tracker Guide</div>
+        <div style={{fontFamily:F.sans, fontSize:13, color:C.textSec, marginBottom:20, lineHeight:1.6}}>
+          New here? Take the interactive walkthrough to learn every feature step by step.
+        </div>
+        <button onClick={onStartWizard} style={{...bSty("primary"), padding:"12px 32px", fontSize:15, borderRadius:12}}>
+          Start Walkthrough →
+        </button>
+      </div>
+
+      {/* Quick ref cards */}
+      <div style={{fontFamily:F.sans, fontSize:11, color:C.textMuted, letterSpacing:"0.1em", marginBottom:12}}>FEATURE REFERENCE</div>
+      {sections.map((sec, si) => {
+        const [open, setOpen] = React.useState(false);
+        return (
+          <div key={si} style={{...card({marginBottom:10})}}>
+            <div onClick={()=>setOpen(o=>!o)} style={{display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer"}}>
+              <div style={{display:"flex", alignItems:"center", gap:12}}>
+                <span style={{fontSize:20}}>{sec.icon}</span>
+                <div>
+                  <div style={{fontFamily:F.sans, fontSize:15, fontWeight:700, color:C.text}}>{sec.title}</div>
+                  <div style={{fontFamily:F.sans, fontSize:11, color:C.accent, marginTop:2}}>→ {sec.tab} tab</div>
+                </div>
+              </div>
+              <span style={{color:C.textMuted, fontSize:14}}>{open?"▲":"▼"}</span>
+            </div>
+            {open && (
+              <div style={{marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}`}}>
+                {sec.steps.map((step, i) => (
+                  <div key={i} style={{display:"flex", gap:12, marginBottom:10, alignItems:"flex-start"}}>
+                    <div style={{width:22, height:22, borderRadius:"50%", background:C.accentLight, border:`1px solid ${C.accent}40`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0}}>
+                      <span style={{fontFamily:F.mono, fontSize:11, color:C.accent, fontWeight:700}}>{i+1}</span>
+                    </div>
+                    <span style={{fontFamily:F.sans, fontSize:13, color:C.textSec, lineHeight:1.5, flex:1}}>{step}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WizardModal({ onClose }) {
+  const [step, setStep] = React.useState(0);
+  const s = WIZARD_STEPS[step];
+  const total = WIZARD_STEPS.length;
+  const isLast = step === total - 1;
+
+  return (
+    <div style={{position:"fixed", inset:0, background:"#000d", display:"flex", alignItems:"flex-end", zIndex:500}}>
+      <div style={{background:C.surface, borderRadius:"20px 20px 0 0", padding:"0 0 32px", width:"100%", maxHeight:"90vh", overflowY:"auto"}}>
+        {/* Progress bar */}
+        <div style={{height:3, background:C.border, borderRadius:"20px 20px 0 0", overflow:"hidden"}}>
+          <div style={{height:"100%", width:`${((step+1)/total)*100}%`, background:C.accent, transition:"width 0.3s ease"}}/>
+        </div>
+
+        <div style={{padding:"24px 24px 0"}}>
+          {/* Step counter */}
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24}}>
+            <span style={{fontFamily:F.mono, fontSize:11, color:C.textMuted}}>{step+1} / {total}</span>
+            <button onClick={onClose} style={{background:"transparent", border:"none", color:C.textMuted, fontSize:20, cursor:"pointer", padding:"4px 8px"}}>×</button>
+          </div>
+
+          {/* Icon */}
+          <div style={{fontSize:52, textAlign:"center", marginBottom:16}}>{s.icon}</div>
+
+          {/* Title */}
+          <div style={{fontFamily:F.serif, fontSize:24, fontWeight:700, color:C.text, textAlign:"center", marginBottom:6}}>{s.title}</div>
+          <div style={{fontFamily:F.sans, fontSize:13, color:C.accent, textAlign:"center", marginBottom:20}}>{s.subtitle}</div>
+
+          {/* Content */}
+          <div style={{fontFamily:F.sans, fontSize:14, color:C.textSec, lineHeight:1.7, marginBottom:s.example?20:0}}>{s.content}</div>
+
+          {/* Example card */}
+          {s.example && (
+            <div style={{background:C.surfaceAlt, borderRadius:10, padding:"14px 16px", marginBottom:16}}>
+              <div style={{fontFamily:F.mono, fontSize:11, color:C.textMuted, letterSpacing:"0.08em", marginBottom:10}}>{s.example.label.toUpperCase()}</div>
+              {s.example.lines.map((line, i) => (
+                <div key={i} style={{display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:i<s.example.lines.length-1?`1px solid ${C.border}`:"none"}}>
+                  <span style={{fontFamily:F.sans, fontSize:13, color:C.textSec}}>{line.key}</span>
+                  <span style={{fontFamily:F.mono, fontSize:13, color:C.text, fontWeight:600}}>{line.val}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Tip */}
+          {s.tip && (
+            <div style={{background:C.amberLight, borderRadius:8, padding:"10px 14px", marginBottom:16, border:`1px solid ${C.amber}30`}}>
+              <span style={{fontFamily:F.sans, fontSize:12, color:C.amber}}>{s.tip}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div style={{padding:"16px 24px 0", display:"flex", gap:10}}>
+          {step > 0 && (
+            <button onClick={()=>setStep(s=>s-1)} style={{...bSty("outline"), flex:1, padding:12}}>← Back</button>
+          )}
+          <button onClick={()=>isLast?onClose():setStep(s=>s+1)}
+            style={{...bSty("primary"), flex:2, padding:12, fontSize:15}}>
+            {isLast ? "Get started" : "Next →"}
+          </button>
+        </div>
+
+        {/* Dot indicators */}
+        <div style={{display:"flex", justifyContent:"center", gap:6, marginTop:16}}>
+          {WIZARD_STEPS.map((_,i)=>(
+            <div key={i} onClick={()=>setStep(i)} style={{width:i===step?20:6, height:6, borderRadius:3, background:i===step?C.accent:C.border, cursor:"pointer", transition:"all 0.2s"}}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App() {
   const today=todayStr();
@@ -1208,6 +1545,7 @@ export default function App() {
   const[loading,setLoading]=useState(true);
   const[flashSaved,setFlashSaved]=useState(false);
   const[showChangePw,setShowChangePw]=useState(false);
+  const[showWizard,setShowWizard]=useState(false);
   const[showMenu,setShowMenu]=useState(false);
 
   const[user,setUser]=useState(()=>getSession()?.user||null);
@@ -1285,6 +1623,7 @@ export default function App() {
     {id:"inventory",label:"Inventory"},
     {id:"data",label:"Data"},
     {id:"editplan",label:"Edit plan"},
+    {id:"help",label:"Help"},
   ];
   const weeks=Math.max(1,Math.ceil(diffDays(cycleStart,today)/7)+1);
 
@@ -1344,8 +1683,11 @@ export default function App() {
       {tab==="inventory"&&<InventoryTab compounds={compounds} vials={vials} onUpdateVials={updateVials}/>}
       {tab==="data"&&<DataTab bodyLog={bodyLog} labLog={labLog} onUpdateBodyLog={updateBodyLog} onUpdateLabLog={updateLabLog}/>}
       {tab==="editplan"&&<EditPlanTab compounds={compounds} onUpdateCompounds={updateCompounds} cycleStart={cycleStart} onUpdateCycleStart={updateCycleStart}/>}
+      {tab==="help"&&<HelpTab onStartWizard={()=>setShowWizard(true)}/>}
 
-      {showChangePw && <ChangePasswordModal onClose={()=>setShowChangePw(false)}/>}
+      {showChangePw && <ChangePasswordModal onClose={()=>setShowChangePw(false)}/>
+      }
+      {showWizard && <WizardModal onClose={()=>setShowWizard(false)}/>}
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:0;}
