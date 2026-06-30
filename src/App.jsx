@@ -1335,6 +1335,8 @@ const WIZARD_STEPS = [
 ];
 
 function HelpTab({ onStartWizard }) {
+  const [openSection, setOpenSection] = React.useState(null);
+
   const sections = [
     {
       icon: "🧬", title: "Adding Compounds", tab: "Edit Plan",
@@ -1387,7 +1389,7 @@ function HelpTab({ onStartWizard }) {
     {
       icon: "🔔", title: "Setting Up Notifications", tab: "Schedule",
       steps: [
-        "Open the app from home screen in Safari (iOS) or Edge (Android/desktop)",
+        "Open the app from home screen in Safari (iOS) or Edge (desktop)",
         "Go to Schedule tab",
         "Tap a compound name on any dose row",
         "Toggle Notifications ON",
@@ -1426,10 +1428,10 @@ function HelpTab({ onStartWizard }) {
       {/* Quick ref cards */}
       <div style={{fontFamily:F.sans, fontSize:11, color:C.textMuted, letterSpacing:"0.1em", marginBottom:12}}>FEATURE REFERENCE</div>
       {sections.map((sec, si) => {
-        const [open, setOpen] = React.useState(false);
+        const open = openSection === si;
         return (
           <div key={si} style={{...card({marginBottom:10})}}>
-            <div onClick={()=>setOpen(o=>!o)} style={{display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer"}}>
+            <div onClick={()=>setOpenSection(open?null:si)} style={{display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer"}}>
               <div style={{display:"flex", alignItems:"center", gap:12}}>
                 <span style={{fontSize:20}}>{sec.icon}</span>
                 <div>
