@@ -1210,7 +1210,7 @@ const WIZARD_STEPS = [
     id: "compounds",
     icon: "🧬",
     title: "Adding Compounds",
-    subtitle: "Edit Plan → + Add",
+    subtitle: "Edit Plan > + Add",
     content: "Go to the Edit Plan tab and tap + Add to create a compound. Give it a name, set the vial size and BAC water volume, then configure your dose and which days you inject.",
     example: {
       label: "Example",
@@ -1286,7 +1286,7 @@ const WIZARD_STEPS = [
         { key: "BAC Water", val: "2 mL" },
         { key: "Concentration", val: "5 mg/mL" },
         { key: "Per unit", val: "50 mcg/unit" },
-        { key: "2mg dose →", val: "40 units" },
+        { key: "2mg dose >", val: "40 units" },
       ]
     },
     tip: "Tip: Change the Dose field to calculate units for any titration amount without affecting your saved protocol.",
@@ -1329,7 +1329,7 @@ const WIZARD_STEPS = [
     icon: "✅",
     title: "You're all set",
     subtitle: "Start by adding your first compound",
-    content: "Head to Edit Plan → + Add to set up your first compound. Once you've added it, come back to Schedule to start logging doses and setting up notifications.",
+    content: "Head to Edit Plan > + Add to set up your first compound. Once you've added it, come back to Schedule to start logging doses and setting up notifications.",
     tip: "You can always come back to this Help tab for a reference guide on any feature.",
   },
 ];
@@ -1421,7 +1421,7 @@ function HelpTab({ onStartWizard }) {
           New here? Take the interactive walkthrough to learn every feature step by step.
         </div>
         <button onClick={onStartWizard} style={{...bSty("primary"), padding:"12px 32px", fontSize:15, borderRadius:12}}>
-          Start Walkthrough →
+          Start Walkthrough
         </button>
       </div>
 
@@ -1436,7 +1436,7 @@ function HelpTab({ onStartWizard }) {
                 <span style={{fontSize:20}}>{sec.icon}</span>
                 <div>
                   <div style={{fontFamily:F.sans, fontSize:15, fontWeight:700, color:C.text}}>{sec.title}</div>
-                  <div style={{fontFamily:F.sans, fontSize:11, color:C.accent, marginTop:2}}>→ {sec.tab} tab</div>
+                  <div style={{fontFamily:F.sans, fontSize:11, color:C.accent, marginTop:2}}>> {sec.tab} tab</div>
                 </div>
               </div>
               <span style={{color:C.textMuted, fontSize:14}}>{open?"▲":"▼"}</span>
