@@ -1515,11 +1515,11 @@ function WizardModal({ onClose }) {
         {/* Navigation */}
         <div style={{padding:"16px 24px 0", display:"flex", gap:10}}>
           {step > 0 && (
-            <button onClick={()=>setStep(s=>s-1)} style={{...bSty("outline"), flex:1, padding:12}}>← Back</button>
+            <button onClick={()=>setStep(s=>s-1)} style={{...bSty("outline"), flex:1, padding:12}}>Back</button>
           )}
           <button onClick={()=>isLast?onClose():setStep(s=>s+1)}
             style={{...bSty("primary"), flex:2, padding:12, fontSize:15}}>
-            {isLast ? "Get started" : "Next →"}
+            {isLast ? "Get started" : "Next >"}
           </button>
         </div>
 
