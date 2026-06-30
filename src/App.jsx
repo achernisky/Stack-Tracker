@@ -1414,7 +1414,7 @@ function HelpTab({ onStartWizard }) {
   return (
     <div style={{padding:"16px 16px 120px"}}>
       {/* Hero */}
-      <div style={{...card({marginBottom:20, background:C.accentLight, borderColor:C.accent+"40", textAlign:"center", padding:"24px 20px"})}>
+      <div style={{...card({marginBottom:20, background:C.accentLight, borderColor:C.accent+"40", textAlign:"center", padding:"24px 20px"})}}>
         <div style={{fontSize:40, marginBottom:12}}>💊</div>
         <div style={{fontFamily:F.serif, fontSize:22, fontWeight:700, color:C.text, marginBottom:8}}>Stack Tracker Guide</div>
         <div style={{fontFamily:F.sans, fontSize:13, color:C.textSec, marginBottom:20, lineHeight:1.6}}>
@@ -1436,7 +1436,7 @@ function HelpTab({ onStartWizard }) {
                 <span style={{fontSize:20}}>{sec.icon}</span>
                 <div>
                   <div style={{fontFamily:F.sans, fontSize:15, fontWeight:700, color:C.text}}>{sec.title}</div>
-                  <div style={{fontFamily:F.sans, fontSize:11, color:C.accent, marginTop:2}}>> {sec.tab} tab</div>
+                  <div style={{fontFamily:F.sans, fontSize:11, color:C.accent, marginTop:2}}>{'>'} {sec.tab} tab</div>
                 </div>
               </div>
               <span style={{color:C.textMuted, fontSize:14}}>{open?"▲":"▼"}</span>
